@@ -32,6 +32,10 @@
 关闭空调		g uan b i k ong t iao
 设置空调制冷模式		sh e zh ib k ong t iao zh ib l eng m o sh ib
 设置空调加热模式		sh e zh ib k ong t iao j ia r e m o sh ib
+空调升高一度		k ong t iao sh eng g ao y i d u
+空调降低一度		k ong t iao j iang d i y i d u
+空调升高五度		k ong t iao sh eng g ao y i d u
+空调降低五度		k ong t iao j iang d i y i d u
 打开台灯		d a k ai t ai d eng
 关闭台灯		g uan b i t ai d eng
 打开风扇		d a k ai f eng sh an
@@ -90,3 +94,6 @@
 哈喽阿尔法(2) 		h a l ou as a es er f a
 哈喽阿里克萨		h a l ou as a l ai k e s a
 阿里克萨		as a l ai k e s a
+音箱		y in x iang
+麦克风		m ai k e f eng
+机器人		j i q i r en
