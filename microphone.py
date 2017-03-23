@@ -83,6 +83,7 @@ class Microphone:
         self.wav = None
         self.record_countdown = None
         self.listen_countdown = [0, 0]
+        self.buffers_per_sec = self.sample_rate / self.frames_per_buffer + 1
 
     @staticmethod
     def create_decoder():
@@ -100,8 +101,8 @@ class Microphone:
         config.set_string('-dict', dict)
         config.set_string('-kws', kws)
         # config.set_int('-samprate', SAMPLE_RATE) # uncomment if rate is not 16000. use config.set_float() on ubuntu
-        #config.set_int('-nfft', 512)
-        #config.set_float('-vad_threshold', 2.7)
+        config.set_int('-nfft', 512)
+        config.set_float('-vad_threshold', 2.7)
         config.set_string('-logfn', log)
 
         return Decoder(config)
@@ -125,7 +126,9 @@ class Microphone:
 
         return ''
 
-    def detect(self, keyword=None):
+    def detect(self, keyword=None, duration=10, timeout=10):
+        timeout_count = timeout * self.buffers_per_sec
+        duration_count = duration * self.buffers_per_sec
         self.decoder.start_utt()
 
         self.detect_queue.queue.clear()
@@ -136,10 +139,6 @@ class Microphone:
         self.in_speech = False
         logger.info('Start detecting')
         while not self.quit_event.is_set():
-            size = self.detect_queue.qsize()
-            if size > 4:
-                logger.info('Too many delays, {} in queue'.format(size))
-
             data = self.detect_queue.get()
             self.decoder.process_raw(data, False, False)
 
@@ -150,6 +149,18 @@ class Microphone:
                     self.decoder.end_utt()
                     result = hypothesis.hypstr
                     break
+            else:
+                if not self.in_speech:
+                    timeout_count -= 1
+                else:
+                    duration_count -= 1
+            if timeout_count <= 0 or duration_count <= 0:
+                hypothesis = self.decoder.hyp()
+                if hypothesis:
+                     result = hypothesis.hypstr
+                self.decoder.end_utt()
+                logger.info('Detecting timeout {} {}'.format(timeout_count,duration_count))
+                break
 
         self.status &= ~self.detecting_mask
         self.stop()
@@ -161,8 +172,8 @@ class Microphone:
     def listen(self, duration=9, timeout=1):
         vad.reset()
 
-        self.listen_countdown[0] = (duration * self.sample_rate + self.frames_per_buffer - 1) / self.frames_per_buffer
-        self.listen_countdown[1] = (timeout * self.sample_rate + self.frames_per_buffer - 1) / self.frames_per_buffer
+        self.listen_countdown[0] = duration * self.buffers_per_sec
+        self.listen_countdown[1] = timeout * self.buffers_per_sec
 
         self.listen_queue.queue.clear()
         self.status |= self.listening_mask
@@ -189,7 +200,7 @@ class Microphone:
         self.wav.setsampwidth(2)
         self.wav.setnchannels(1)
         self.wav.setframerate(self.sample_rate)
-        self.record_countdown = (seconds * self.sample_rate + self.frames_per_buffer - 1) / self.frames_per_buffer
+        self.record_countdown = seconds * self.buffers_per_sec
         self.status |= self.recording_mask
         self.start()
 
@@ -257,7 +268,6 @@ def task(quit_event):
 
     while not quit_event.is_set():
         text = mic.wakeup()
-        print('Wake up')
             #data = mic.listen()
             #text = mic.recognize(data)
         if text:
