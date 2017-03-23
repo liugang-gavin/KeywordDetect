@@ -1,5 +1,6 @@
 import os
 from pocketsphinx import *
+import time
 
 class LiveSpeech(Pocketsphinx):
 
@@ -19,13 +20,22 @@ class LiveSpeech(Pocketsphinx):
         self.ad = Ad(self.audio_device, self.sampling_rate)
 
         super(LiveSpeech, self).__init__(**kwargs)
+        self.listen_countdown = (5 * self.sampling_rate ) / 1024
+        print(self.listen_countdown)
 
     def __iter__(self):
         with self.ad:
             with self.start_utterance():
+                countdown = self.listen_countdown
                 while self.ad.readinto(self.buf) >= 0:
                     self.process_raw(self.buf, self.no_search, self.full_utt)
-                    print(self.get_in_speech())
+                    countdown -= 1
+                    if countdown <= 0:
+                        print('restart count', time.strftime('%H:%M:%S',time.localtime(time.time())))
+                        countdown = self.listen_countdown
+                        with self.end_utterance():
+                            yield self
+                        
                     if self.keyphrase and self.hyp():
                         with self.end_utterance():
                             yield self
