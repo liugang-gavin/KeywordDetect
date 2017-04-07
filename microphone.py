@@ -1,3 +1,4 @@
+#coding:utf-8
 """
  ReSpeaker Python Library
  Copyright (c) 2016 Seeed Technology Limited.
@@ -99,10 +100,10 @@ class Microphone:
         config.set_string('-hmm', hmm)
         config.set_string('-lm', lm)
         config.set_string('-dict', dict)
-        config.set_string('-kws', kws)
+        # config.set_string('-kws', kws)
         # config.set_int('-samprate', SAMPLE_RATE) # uncomment if rate is not 16000. use config.set_float() on ubuntu
         config.set_int('-nfft', 512)
-        config.set_float('-vad_threshold', 2.7)
+        #config.set_float('-vad_threshold', 2.7)
         config.set_string('-logfn', log)
 
         return Decoder(config)
@@ -126,7 +127,7 @@ class Microphone:
 
         return ''
 
-    def detect(self, keyword=None, duration=10, timeout=10):
+    def detect(self, keywords=None, duration=10, timeout=10):
         timeout_count = timeout * self.buffers_per_sec
         duration_count = duration * self.buffers_per_sec
         self.decoder.start_utt()
@@ -141,10 +142,17 @@ class Microphone:
         while not self.quit_event.is_set():
             data = self.detect_queue.get()
             self.decoder.process_raw(data, False, False)
+            hypothesis = self.decoder.hyp()
+
+            if keywords and hypothesis:
+                res = hypothesis.hypstr
+                if res == keywords:
+                    self.decoder.end_utt()
+                    result = hypothesis.hypstr
+                    break
 
             if self.in_speech != self.decoder.get_in_speech():
                 self.in_speech = self.decoder.get_in_speech()
-                hypothesis = self.decoder.hyp()
                 if not self.in_speech and hypothesis:
                     self.decoder.end_utt()
                     result = hypothesis.hypstr
@@ -155,7 +163,6 @@ class Microphone:
                 else:
                     duration_count -= 1
             if timeout_count <= 0 or duration_count <= 0:
-                hypothesis = self.decoder.hyp()
                 if hypothesis:
                      result = hypothesis.hypstr
                 self.decoder.end_utt()
@@ -267,9 +274,7 @@ def task(quit_event):
     mic = Microphone(quit_event=quit_event)
 
     while not quit_event.is_set():
-        text = mic.wakeup()
-            #data = mic.listen()
-            #text = mic.recognize(data)
+        text = mic.wakeup(keywords='ALEXA')
         if text:
             print('Recognized %s' % text)
 
